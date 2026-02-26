@@ -1,0 +1,7 @@
+package com.kusal.myseat.repository;
+
+import com.kusal.myseat.entity.Section;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface SectionRepository extends JpaRepository<Section, Long> {
+}
