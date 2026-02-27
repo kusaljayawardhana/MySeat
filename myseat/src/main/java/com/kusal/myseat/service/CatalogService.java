@@ -26,6 +26,7 @@ public class CatalogService {
     private final SectionRepository sectionRepository;
     private final SeatRepository seatRepository;
     private final UserRepository userRepository;
+    private final BookingService bookingService;
 
     public Event createEvent(CreateEventRequest request) {
         Event event = Event.builder()
@@ -50,7 +51,7 @@ public class CatalogService {
                 .build();
 
         Section savedSection = sectionRepository.save(section);
-
+        
         List<Seat> seats = new ArrayList<>();
         for (int row = 1; row <= request.totalRows(); row++) {
             for (int col = 1; col <= request.totalColumns(); col++) {
@@ -78,9 +79,14 @@ public class CatalogService {
     }
 
     public List<SeatView> getSeatsForEvent(Long eventId) {
+        bookingService.expireStaleReservations();
+
         return seatRepository.findBySectionEventId(eventId)
                 .stream()
                 .map(seat -> new SeatView(seat.getId(), seat.getRowNumber(), seat.getColumnNumber(), seat.getStatus()))
                 .toList();
     }
+
+
 }
+
