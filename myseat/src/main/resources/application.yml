@@ -1,8 +1,10 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/MySeat
-    username: postgres
-    password: yourpassword
+    url: jdbc:postgresql://localhost:5433/myseat
+    
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  
 
   jpa:
     hibernate:
@@ -17,4 +19,4 @@ spring:
       FAIL_ON_EMPTY_BEANS: false
 
 server:
-  port: 8080
+  port: 8081

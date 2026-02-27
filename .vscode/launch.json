@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-MyseatApplication<myseat>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/myseat",
+            "mainClass": "com.kusal.myseat.MyseatApplication",
+            "projectName": "myseat",
+            "args": "",
+            "envFile": "${workspaceFolder}/myseat/.env"
+        }
+    ]
+}
