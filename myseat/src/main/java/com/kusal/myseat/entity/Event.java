@@ -3,6 +3,8 @@ package com.kusal.myseat.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -17,7 +19,8 @@ public class Event {
 
     private String name;
 
-    private String venue;
+    private LocalDateTime eventDate;
 
-    private String eventDate;
+    @ManyToOne
+    private Venue venue;
 }

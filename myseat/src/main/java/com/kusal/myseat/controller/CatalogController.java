@@ -3,10 +3,12 @@ package com.kusal.myseat.controller;
 import com.kusal.myseat.dto.CreateEventRequest;
 import com.kusal.myseat.dto.CreateSectionRequest;
 import com.kusal.myseat.dto.CreateUserRequest;
+import com.kusal.myseat.dto.CreateVenueRequest;
 import com.kusal.myseat.dto.SeatView;
 import com.kusal.myseat.entity.Event;
 import com.kusal.myseat.entity.Section;
 import com.kusal.myseat.entity.User;
+import com.kusal.myseat.entity.Venue;
 import com.kusal.myseat.service.CatalogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,11 @@ public class CatalogController {
     @PostMapping("/events")
     public Event createEvent(@Valid @RequestBody CreateEventRequest request) {
         return catalogService.createEvent(request);
+    }
+
+    @PostMapping("/venues")
+    public Venue createVenue(@Valid @RequestBody CreateVenueRequest request) {
+        return catalogService.createVenue(request);
     }
 
     @PostMapping("/sections")

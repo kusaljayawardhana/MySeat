@@ -2,6 +2,7 @@ package com.kusal.myseat.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.util.*;
 
 @Entity
 @Getter
@@ -23,6 +24,9 @@ public class Section {
     private Integer totalColumns;
 
     @ManyToOne
-    @JoinColumn(name = "event_id")
-    private Event event;
+    private Venue venue;
+
+    @OneToMany(mappedBy = "section")
+    private List<Seat> seats;
+
 }

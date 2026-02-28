@@ -3,18 +3,22 @@ package com.kusal.myseat.service;
 import com.kusal.myseat.dto.CreateEventRequest;
 import com.kusal.myseat.dto.CreateSectionRequest;
 import com.kusal.myseat.dto.CreateUserRequest;
+import com.kusal.myseat.dto.CreateVenueRequest;
 import com.kusal.myseat.dto.SeatView;
 import com.kusal.myseat.entity.*;
 import com.kusal.myseat.repository.EventRepository;
 import com.kusal.myseat.repository.SectionRepository;
 import com.kusal.myseat.repository.SeatRepository;
 import com.kusal.myseat.repository.UserRepository;
+import com.kusal.myseat.repository.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,28 +30,39 @@ public class CatalogService {
     private final SectionRepository sectionRepository;
     private final SeatRepository seatRepository;
     private final UserRepository userRepository;
+    private final VenueRepository venueRepository;
     private final BookingService bookingService;
 
     public Event createEvent(CreateEventRequest request) {
+        Venue venue = resolveVenueForEvent(request);
+        LocalDateTime eventDate = parseEventDate(request.eventDate());
+
         Event event = Event.builder()
                 .name(request.name())
-                .venue(request.venue())
-                .eventDate(request.eventDate())
+                .venue(venue)
+                .eventDate(eventDate)
                 .build();
         return eventRepository.save(event);
     }
 
+    public Venue createVenue(CreateVenueRequest request) {
+        Venue venue = new Venue();
+        venue.setName(request.name());
+        venue.setAddress(request.address());
+        return venueRepository.save(venue);
+    }
+
     @Transactional
     public Section createSection(CreateSectionRequest request) {
-        Event event = eventRepository.findById(request.eventId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
+        Venue venue = venueRepository.findById(request.venueId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found"));
 
         Section section = Section.builder()
                 .name(request.name())
                 .price(request.price())
                 .totalRows(request.totalRows())
                 .totalColumns(request.totalColumns())
-                .event(event)
+                .venue(venue)
                 .build();
 
         Section savedSection = sectionRepository.save(section);
@@ -81,10 +96,41 @@ public class CatalogService {
     public List<SeatView> getSeatsForEvent(Long eventId) {
         bookingService.expireStaleReservations();
 
-        return seatRepository.findBySectionEventId(eventId)
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
+
+        return seatRepository.findBySectionVenueId(event.getVenue().getId())
                 .stream()
                 .map(seat -> new SeatView(seat.getId(), seat.getRowNumber(), seat.getColumnNumber(), seat.getStatus()))
                 .toList();
+    }
+
+    private Venue resolveVenueForEvent(CreateEventRequest request) {
+        if (request.venueId() != null && request.venue() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provide either venueId or venue details, not both");
+        }
+
+        if (request.venueId() != null) {
+            return venueRepository.findById(request.venueId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found"));
+        }
+
+        if (request.venue() != null) {
+            Venue newVenue = new Venue();
+            newVenue.setName(request.venue().name());
+            newVenue.setAddress(request.venue().address());
+            return venueRepository.save(newVenue);
+        }
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Either venueId or venue details must be provided");
+    }
+
+    private LocalDateTime parseEventDate(String eventDate) {
+        try {
+            return LocalDateTime.parse(eventDate);
+        } catch (DateTimeParseException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "eventDate must be in ISO-8601 format, e.g. 2026-02-28T19:30:00");
+        }
     }
 
 

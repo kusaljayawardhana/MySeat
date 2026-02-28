@@ -9,6 +9,6 @@ public record CreateSectionRequest(
         @NotNull @Min(0) Double price,
         @NotNull @Min(1) Integer totalRows,
         @NotNull @Min(1) Integer totalColumns,
-        @NotNull Long eventId
+        @NotNull Long venueId
 ) {
 }
