@@ -66,6 +66,10 @@ public class CatalogService {
         return venueRepository.save(venue);
     }
 
+    public List<Venue> getVenues() {
+        return venueRepository.findAll();
+    }
+
     @Transactional
     public Section createSection(CreateSectionRequest request) {
         Venue venue = venueRepository.findById(request.venueId())
@@ -115,7 +119,7 @@ public class CatalogService {
 
         return seatRepository.findBySectionVenueId(event.getVenue().getId())
                 .stream()
-                .map(seat -> new SeatView(seat.getId(), seat.getRowNumber(), seat.getColumnNumber(), seat.getStatus()))
+            .map(seat -> new SeatView(seat.getId(), seat.getSection().getId(), seat.getRowNumber(), seat.getColumnNumber(), seat.getStatus()))
                 .toList();
     }
 

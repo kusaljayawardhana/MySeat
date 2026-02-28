@@ -44,6 +44,11 @@ public class CatalogController {
         return catalogService.createVenue(request);
     }
 
+    @GetMapping("/venues")
+    public List<Venue> getVenues() {
+        return catalogService.getVenues();
+    }
+
     @PostMapping("/sections")
     public Section createSection(@Valid @RequestBody CreateSectionRequest request) {
         return catalogService.createSection(request);
