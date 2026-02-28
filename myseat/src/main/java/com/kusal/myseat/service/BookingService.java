@@ -6,6 +6,7 @@ import com.kusal.myseat.dto.CreateBookingRequest;
 import com.kusal.myseat.entity.*;
 import com.kusal.myseat.repository.BookingRepository;
 import com.kusal.myseat.repository.BookingSeatRepository;
+import com.kusal.myseat.repository.EventRepository;
 import com.kusal.myseat.repository.SectionRepository;
 import com.kusal.myseat.repository.SeatRepository;
 import com.kusal.myseat.repository.UserRepository;
@@ -29,6 +30,7 @@ public class BookingService {
     private final SeatRepository seatRepository;
     private final BookingRepository bookingRepository;
     private final BookingSeatRepository bookingSeatRepository;
+    private final EventRepository eventRepository;
 
     @Value("${booking.reservation-timeout-seconds:300}")
     private long reservationTimeoutSeconds;
@@ -37,11 +39,27 @@ public class BookingService {
     public BookingResponse createBooking(CreateBookingRequest request) {
         expireStaleReservations();
 
-        User user = userRepository.findById(request.userId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        User user = null;
+        if (request.userId() != null) {
+            user = userRepository.findById(request.userId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        }
+
+        validatePaymentDetails(request);
+
+        Event event = eventRepository.findById(request.eventId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
 
         Section section = sectionRepository.findById(request.sectionId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+
+        if (!section.getVenue().getId().equals(request.venueId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Section does not belong to provided venue");
+        }
+
+        if (!event.getVenue().getId().equals(request.venueId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event does not belong to provided venue");
+        }
 
         List<Seat> seats = seatRepository.findAllById(request.seatIds());
         if (seats.size() != request.seatIds().size()) {
@@ -73,6 +91,10 @@ public class BookingService {
                 .status(BookingStatus.RESERVED)
                 .reservedAt(now)
                 .expiresAt(expiresAt)
+            .payerName(request.payerName())
+            .payerEmail(request.payerEmail())
+            .paymentMethod(request.paymentMethod())
+            .paymentReference(request.paymentReference())
                 .build());
 
         List<BookingSeat> bookingSeats = seats.stream()
@@ -152,5 +174,20 @@ public class BookingService {
                 booking.getExpiresAt(),
                 seats.stream().map(Seat::getId).toList(), null
         );
+    }
+
+    private void validatePaymentDetails(CreateBookingRequest request) {
+        if (request.payerName() == null || request.payerName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payerName is required");
+        }
+        if (request.payerEmail() == null || request.payerEmail().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payerEmail is required");
+        }
+        if (request.paymentMethod() == null || request.paymentMethod().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "paymentMethod is required");
+        }
+        if (request.paymentReference() == null || request.paymentReference().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "paymentReference is required");
+        }
     }
 }

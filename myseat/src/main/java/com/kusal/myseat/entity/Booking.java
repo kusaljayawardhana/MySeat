@@ -27,6 +27,14 @@ public class Booking {
 
     private Instant confirmedAt;
 
+    private String payerName;
+
+    private String payerEmail;
+
+    private String paymentMethod;
+
+    private String paymentReference;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;

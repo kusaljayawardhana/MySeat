@@ -4,6 +4,7 @@ import com.kusal.myseat.dto.CreateEventRequest;
 import com.kusal.myseat.dto.CreateSectionRequest;
 import com.kusal.myseat.dto.CreateUserRequest;
 import com.kusal.myseat.dto.CreateVenueRequest;
+import com.kusal.myseat.dto.EventView;
 import com.kusal.myseat.dto.SeatView;
 import com.kusal.myseat.entity.Event;
 import com.kusal.myseat.entity.Section;
@@ -26,6 +27,16 @@ public class CatalogController {
     @PostMapping("/events")
     public Event createEvent(@Valid @RequestBody CreateEventRequest request) {
         return catalogService.createEvent(request);
+    }
+
+    @GetMapping("/events")
+    public List<EventView> getEvents() {
+        return catalogService.getEvents();
+    }
+
+    @GetMapping("/events/{eventId}")
+    public EventView getEventById(@PathVariable Long eventId) {
+        return catalogService.getEventById(eventId);
     }
 
     @PostMapping("/venues")

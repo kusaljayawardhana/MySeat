@@ -4,6 +4,7 @@ import com.kusal.myseat.dto.CreateEventRequest;
 import com.kusal.myseat.dto.CreateSectionRequest;
 import com.kusal.myseat.dto.CreateUserRequest;
 import com.kusal.myseat.dto.CreateVenueRequest;
+import com.kusal.myseat.dto.EventView;
 import com.kusal.myseat.dto.SeatView;
 import com.kusal.myseat.entity.*;
 import com.kusal.myseat.repository.EventRepository;
@@ -43,6 +44,19 @@ public class CatalogService {
                 .eventDate(eventDate)
                 .build();
         return eventRepository.save(event);
+    }
+
+    public List<EventView> getEvents() {
+        return eventRepository.findAllByOrderByEventDateAsc()
+                .stream()
+                .map(this::toEventView)
+                .toList();
+    }
+
+    public EventView getEventById(Long eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
+        return toEventView(event);
     }
 
     public Venue createVenue(CreateVenueRequest request) {
@@ -131,6 +145,17 @@ public class CatalogService {
         } catch (DateTimeParseException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "eventDate must be in ISO-8601 format, e.g. 2026-02-28T19:30:00");
         }
+    }
+
+    private EventView toEventView(Event event) {
+        return new EventView(
+                event.getId(),
+                event.getName(),
+                event.getEventDate(),
+                event.getVenue().getId(),
+                event.getVenue().getName(),
+                event.getVenue().getAddress()
+        );
     }
 
 
