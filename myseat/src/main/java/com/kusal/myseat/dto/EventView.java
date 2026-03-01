@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record EventView(
         Long id,
         String name,
+        String description,
         LocalDateTime eventDate,
         Long venueId,
         String venueName,

@@ -76,6 +76,7 @@ public class DataSeeder implements CommandLineRunner {
         if (!hasConcert) {
             eventRepository.save(Event.builder()
                     .name("Friday Live Concert")
+                    .description("An energetic live music night featuring popular local artists and a full-stage production.")
                     .eventDate(LocalDateTime.now().plusDays(7))
                     .venue(venue)
                     .build());
@@ -86,6 +87,7 @@ public class DataSeeder implements CommandLineRunner {
         if (!hasDrama) {
             eventRepository.save(Event.builder()
                     .name("Weekend Drama Show")
+                    .description("A family-friendly stage drama with two acts, intermission, and reserved seating.")
                     .eventDate(LocalDateTime.now().plusDays(14))
                     .venue(venue)
                     .build());

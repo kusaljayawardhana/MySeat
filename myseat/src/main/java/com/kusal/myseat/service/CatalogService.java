@@ -40,6 +40,7 @@ public class CatalogService {
 
         Event event = Event.builder()
                 .name(request.name())
+            .description(request.description())
                 .venue(venue)
                 .eventDate(eventDate)
                 .build();
@@ -111,14 +112,18 @@ public class CatalogService {
         return userRepository.save(user);
     }
 
+    @Transactional
     public List<SeatView> getSeatsForEvent(Long eventId) {
         bookingService.expireStaleReservations();
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
 
+        ensureSeatsForVenue(event.getVenue().getId());
+
         return seatRepository.findBySectionVenueId(event.getVenue().getId())
                 .stream()
+            .filter(seat -> seat.getSection() != null)
             .map(seat -> new SeatView(seat.getId(), seat.getSection().getId(), seat.getRowNumber(), seat.getColumnNumber(), seat.getStatus()))
                 .toList();
     }
@@ -155,11 +160,48 @@ public class CatalogService {
         return new EventView(
                 event.getId(),
                 event.getName(),
+            event.getDescription(),
                 event.getEventDate(),
                 event.getVenue().getId(),
                 event.getVenue().getName(),
                 event.getVenue().getAddress()
         );
+    }
+
+    private void ensureSeatsForVenue(Long venueId) {
+        List<Section> sections = sectionRepository.findByVenueId(venueId);
+        if (sections.isEmpty()) {
+            return;
+        }
+
+        List<Seat> seatsToCreate = new ArrayList<>();
+        for (Section section : sections) {
+            long existingSeatCount = seatRepository.countBySectionId(section.getId());
+            if (existingSeatCount > 0) {
+                continue;
+            }
+
+            Integer totalRows = section.getTotalRows();
+            Integer totalColumns = section.getTotalColumns();
+            if (totalRows == null || totalColumns == null || totalRows < 1 || totalColumns < 1) {
+                continue;
+            }
+
+            for (int row = 1; row <= totalRows; row++) {
+                for (int col = 1; col <= totalColumns; col++) {
+                    seatsToCreate.add(Seat.builder()
+                            .rowNumber(row)
+                            .columnNumber(col)
+                            .status(SeatStatus.AVAILABLE)
+                            .section(section)
+                            .build());
+                }
+            }
+        }
+
+        if (!seatsToCreate.isEmpty()) {
+            seatRepository.saveAll(seatsToCreate);
+        }
     }
 
 

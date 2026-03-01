@@ -19,6 +19,9 @@ public class Event {
 
     private String name;
 
+    @Column(length = 2000)
+    private String description;
+
     private LocalDateTime eventDate;
 
     @ManyToOne

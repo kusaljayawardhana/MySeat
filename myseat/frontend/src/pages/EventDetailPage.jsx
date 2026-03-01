@@ -25,7 +25,11 @@ function EventDetailPage() {
   const [selectedSeatIds, setSelectedSeatIds] = useState([])
   const [selectedSectionId, setSelectedSectionId] = useState(null)
   const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [eventLoading, setEventLoading] = useState(true)
+  const [seatLoading, setSeatLoading] = useState(false)
+  const [bookingStarted, setBookingStarted] = useState(false)
+  const [seatMapVisible, setSeatMapVisible] = useState(false)
+  const [requestedSeatCount, setRequestedSeatCount] = useState('')
 
   const [form, setForm] = useState({
     userId: '',
@@ -38,21 +42,31 @@ function EventDetailPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [eventData, seatData] = await Promise.all([
-          getEventById(eventId),
-          getEventSeats(eventId),
-        ])
+        const eventData = await getEventById(eventId)
         setEventItem(eventData)
-        setSeats(seatData)
       } catch (err) {
         setMessage(err?.response?.data?.message || 'Failed to load event details')
       } finally {
-        setLoading(false)
+        setEventLoading(false)
       }
     }
 
     load()
   }, [eventId])
+
+  const loadSeats = async () => {
+    setSeatLoading(true)
+    try {
+      const seatData = await getEventSeats(eventId)
+      setSeats(seatData)
+      return true
+    } catch (err) {
+      setMessage(err?.response?.data?.message || 'Failed to load seats')
+      return false
+    } finally {
+      setSeatLoading(false)
+    }
+  }
 
   const groupedSeats = useMemo(() => {
     const grouped = new Map()
@@ -102,6 +116,13 @@ function EventDetailPage() {
       if (updated.length === 0) {
         setSelectedSectionId(null)
       }
+      setMessage('')
+      return
+    }
+
+    const targetSeatCount = Number(requestedSeatCount)
+    if (targetSeatCount > 0 && selectedSeatIds.length >= targetSeatCount) {
+      setMessage(`You selected ${targetSeatCount} seats. Deselect one if you want a different seat.`)
       return
     }
 
@@ -115,11 +136,51 @@ function EventDetailPage() {
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
+  const beginBooking = () => {
+    setBookingStarted(true)
+    setSeatMapVisible(false)
+    setRequestedSeatCount('')
+    setSelectedSeatIds([])
+    setSelectedSectionId(null)
+    setMessage('')
+  }
+
+  const showSeatMap = async (event) => {
+    event.preventDefault()
+
+    const targetSeatCount = Number(requestedSeatCount)
+    if (!Number.isInteger(targetSeatCount) || targetSeatCount < 1) {
+      setMessage('Please enter how many seats you want to book.')
+      return
+    }
+
+    const loaded = await loadSeats()
+    if (!loaded) {
+      return
+    }
+
+    setSelectedSeatIds([])
+    setSelectedSectionId(null)
+    setSeatMapVisible(true)
+    setMessage('')
+  }
+
   const submitBooking = async (event) => {
     event.preventDefault()
 
     if (!eventItem || selectedSeatIds.length === 0 || !selectedSectionId) {
       setMessage('Select at least one seat.')
+      return
+    }
+
+    const targetSeatCount = Number(requestedSeatCount)
+    if (!Number.isInteger(targetSeatCount) || targetSeatCount < 1) {
+      setMessage('Enter seat count before booking.')
+      return
+    }
+
+    if (selectedSeatIds.length !== targetSeatCount) {
+      setMessage(`Please select exactly ${targetSeatCount} seat(s).`)
       return
     }
 
@@ -140,6 +201,9 @@ function EventDetailPage() {
       setMessage(`Booking created: #${booking.bookingId} (${booking.status})`)
       setSelectedSeatIds([])
       setSelectedSectionId(null)
+      setRequestedSeatCount('')
+      setSeatMapVisible(false)
+      setBookingStarted(false)
 
       const seatData = await getEventSeats(eventId)
       setSeats(seatData)
@@ -148,7 +212,7 @@ function EventDetailPage() {
     }
   }
 
-  if (loading) {
+  if (eventLoading) {
     return <p className="text-sm text-slate-600">Loading event...</p>
   }
 
@@ -161,75 +225,120 @@ function EventDetailPage() {
       <section className="rounded-lg border bg-white p-4 shadow-sm">
         <h2 className="text-2xl font-semibold">{eventItem.name}</h2>
         <p className="mt-1 text-sm text-slate-600">{new Date(eventItem.eventDate).toLocaleString()}</p>
+        <p className="mt-2 text-sm text-slate-700">{eventItem.description || 'Description is not available for this event yet.'}</p>
         <p className="text-sm text-slate-700">{eventItem.venueName}</p>
         <p className="text-sm text-slate-500">{eventItem.venueAddress}</p>
+        {!bookingStarted ? (
+          <button
+            type="button"
+            className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            onClick={beginBooking}
+          >
+            Book
+          </button>
+        ) : null}
       </section>
 
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-lg font-semibold">Select seats</h3>
-        <div className="mb-4 flex flex-wrap gap-2 text-xs">
-          {Object.entries(statusMeta).map(([status, meta]) => (
-            <span
-              key={status}
-              className={`inline-flex items-center rounded border px-2 py-1 font-medium ${meta.className}`}
+      {bookingStarted ? (
+        <section className="rounded-lg border bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-lg font-semibold">How many seats?</h3>
+          <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={showSeatMap}>
+            <label className="text-sm">
+              Seat count
+              <input
+                type="number"
+                min="1"
+                value={requestedSeatCount}
+                onChange={(event) => setRequestedSeatCount(event.target.value)}
+                required
+                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 sm:w-40"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              {meta.label}
+              Continue to seat map
+            </button>
+          </form>
+        </section>
+      ) : null}
+
+      {seatMapVisible ? (
+        <section className="rounded-lg border bg-white p-4 shadow-sm">
+          <h3 className="mb-1 text-lg font-semibold">Interactive seat map</h3>
+          <p className="mb-3 text-sm text-slate-600">
+            Select exactly {requestedSeatCount} seat(s). Selected: {selectedSeatIds.length}
+          </p>
+          <div className="mb-4 flex flex-wrap gap-2 text-xs">
+            {Object.entries(statusMeta).map(([status, meta]) => (
+              <span
+                key={status}
+                className={`inline-flex items-center rounded border px-2 py-1 font-medium ${meta.className}`}
+              >
+                {meta.label}
+              </span>
+            ))}
+            <span className="inline-flex items-center rounded border border-blue-700 bg-blue-700 px-2 py-1 font-medium text-white">
+              Selected
             </span>
-          ))}
-          <span className="inline-flex items-center rounded border border-blue-700 bg-blue-700 px-2 py-1 font-medium text-white">
-            Selected
-          </span>
-        </div>
-        <div className="space-y-4">
-          {groupedSeats.map((section) => (
-            <div key={section.sectionId}>
-              <p className="mb-2 text-sm font-medium text-slate-700">Section #{section.sectionId}</p>
-              <div className="space-y-2 overflow-x-auto">
-                {Array.from({ length: section.maxRow }, (_, rowIndex) => {
-                  const rowNumber = rowIndex + 1
+          </div>
+          {seatLoading ? <p className="text-sm text-slate-600">Loading seats...</p> : null}
+          <div className="space-y-4">
+            {groupedSeats.length === 0 && !seatLoading ? (
+              <p className="text-sm text-slate-600">No seats found for this event yet. Please create sections (rows/columns).</p>
+            ) : null}
+            {groupedSeats.map((section) => (
+              <div key={section.sectionId}>
+                <p className="mb-2 text-sm font-medium text-slate-700">Section #{section.sectionId}</p>
+                <div className="space-y-2 overflow-x-auto">
+                  {Array.from({ length: section.maxRow }, (_, rowIndex) => {
+                    const rowNumber = rowIndex + 1
 
-                  return (
-                    <div key={rowNumber} className="flex items-center gap-2">
-                      <span className="w-10 text-xs font-medium text-slate-500">R{rowNumber}</span>
-                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${section.maxColumn}, minmax(0, 1fr))` }}>
-                        {Array.from({ length: section.maxColumn }, (_, columnIndex) => {
-                          const columnNumber = columnIndex + 1
-                          const seat = section.seatsByPosition.get(`${rowNumber}-${columnNumber}`)
+                    return (
+                      <div key={rowNumber} className="flex items-center gap-2">
+                        <span className="w-10 text-xs font-medium text-slate-500">R{rowNumber}</span>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${section.maxColumn}, minmax(0, 1fr))` }}>
+                          {Array.from({ length: section.maxColumn }, (_, columnIndex) => {
+                            const columnNumber = columnIndex + 1
+                            const seat = section.seatsByPosition.get(`${rowNumber}-${columnNumber}`)
 
-                          if (!seat) {
-                            return <div key={`${rowNumber}-${columnNumber}`} className="h-9 w-12" />
-                          }
+                            if (!seat) {
+                              return <div key={`${rowNumber}-${columnNumber}`} className="h-9 w-12" />
+                            }
 
-                          const isSelected = selectedSeatIds.includes(seat.id)
-                          const baseClass = 'h-9 w-12 rounded border text-xs font-medium'
-                          const stateClass = seat.status === 'AVAILABLE'
-                            ? isSelected
-                              ? 'border-blue-700 bg-blue-700 text-white'
-                              : statusMeta.AVAILABLE.className
-                            : statusMeta[seat.status]?.className || 'cursor-not-allowed border-slate-300 bg-slate-200 text-slate-600'
+                            const isSelected = selectedSeatIds.includes(seat.id)
+                            const baseClass = 'h-9 w-12 rounded border text-xs font-medium'
+                            const stateClass = seat.status === 'AVAILABLE'
+                              ? isSelected
+                                ? 'border-blue-700 bg-blue-700 text-white'
+                                : statusMeta.AVAILABLE.className
+                              : statusMeta[seat.status]?.className || 'cursor-not-allowed border-slate-300 bg-slate-200 text-slate-600'
 
-                          return (
-                            <button
-                              key={seat.id}
-                              type="button"
-                              className={`${baseClass} ${stateClass}`}
-                              onClick={() => toggleSeat(seat)}
-                            >
-                              C{columnNumber}
-                            </button>
-                          )
-                        })}
+                            return (
+                              <button
+                                key={seat.id}
+                                type="button"
+                                className={`${baseClass} ${stateClass}`}
+                                onClick={() => toggleSeat(seat)}
+                              >
+                                C{columnNumber}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
+      {seatMapVisible ? (
+        <section className="rounded-lg border bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-lg font-semibold">Guest / user booking details</h3>
         <form className="grid gap-3 md:grid-cols-2" onSubmit={submitBooking}>
           <label className="text-sm">
@@ -296,11 +405,12 @@ function EventDetailPage() {
               type="submit"
               className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              Book selected seats ({selectedSeatIds.length})
+              Book selected seats ({selectedSeatIds.length}/{requestedSeatCount || 0})
             </button>
           </div>
         </form>
       </section>
+      ) : null}
 
       {message ? <p className="text-sm text-slate-700">{message}</p> : null}
     </div>

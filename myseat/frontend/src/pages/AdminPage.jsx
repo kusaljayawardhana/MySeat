@@ -6,7 +6,7 @@ function AdminPage() {
   const [message, setMessage] = useState('')
 
   const [venueForm, setVenueForm] = useState({ name: '', address: '' })
-  const [eventForm, setEventForm] = useState({ name: '', eventDate: '', venueId: '' })
+  const [eventForm, setEventForm] = useState({ name: '', description: '', eventDate: '', venueId: '' })
   const [sectionForm, setSectionForm] = useState({
     name: '',
     price: '',
@@ -56,10 +56,11 @@ function AdminPage() {
     try {
       await createEvent({
         name: eventForm.name,
+        description: eventForm.description,
         eventDate: eventForm.eventDate,
         venueId: Number(eventForm.venueId),
       })
-      setEventForm({ name: '', eventDate: '', venueId: '' })
+      setEventForm({ name: '', description: '', eventDate: '', venueId: '' })
       setMessage('Event created')
     } catch (err) {
       setMessage(err?.response?.data?.message || 'Failed to create event')
@@ -129,6 +130,14 @@ function AdminPage() {
             onChange={handleEventChange}
             required
             placeholder="Event name"
+            className="rounded border border-slate-300 px-3 py-2"
+          />
+          <input
+            name="description"
+            value={eventForm.description}
+            onChange={handleEventChange}
+            required
+            placeholder="Event description"
             className="rounded border border-slate-300 px-3 py-2"
           />
           <input

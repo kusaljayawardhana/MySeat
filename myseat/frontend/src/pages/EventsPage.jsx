@@ -43,13 +43,14 @@ function EventsPage() {
               <p className="mt-1 text-sm text-slate-600">
                 {new Date(eventItem.eventDate).toLocaleString()}
               </p>
+              <p className="mt-2 text-sm text-slate-700">{eventItem.description || 'Description coming soon.'}</p>
               <p className="mt-1 text-sm text-slate-700">{eventItem.venueName}</p>
               <p className="text-sm text-slate-500">{eventItem.venueAddress}</p>
               <Link
                 to={`/events/${eventItem.id}`}
                 className="mt-4 inline-block rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
-                View seats & book
+                View event
               </Link>
             </article>
           ))}
