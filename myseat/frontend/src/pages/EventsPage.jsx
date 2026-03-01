@@ -38,20 +38,24 @@ function EventsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {events.map((eventItem) => (
-            <article key={eventItem.id} className="rounded-lg border bg-white p-4 shadow-sm">
-              <h3 className="text-lg font-semibold">{eventItem.name}</h3>
-              <p className="mt-1 text-sm text-slate-600">
-                {new Date(eventItem.eventDate).toLocaleString()}
-              </p>
-              <p className="mt-2 text-sm text-slate-700">{eventItem.description || 'Description coming soon.'}</p>
-              <p className="mt-1 text-sm text-slate-700">{eventItem.venueName}</p>
-              <p className="text-sm text-slate-500">{eventItem.venueAddress}</p>
+            <article key={eventItem.id} className="overflow-hidden rounded-lg border bg-white shadow-sm">
+              <img
+                src={eventItem.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80'}
+                alt={eventItem.name}
+                className="h-44 w-full object-cover"
+              />
+              <div className="p-4">
+                <h3 className="text-lg font-semibold">{eventItem.name}</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {new Date(eventItem.eventDate).toLocaleString()}
+                </p>
               <Link
                 to={`/events/${eventItem.id}`}
                 className="mt-4 inline-block rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 View event
               </Link>
+              </div>
             </article>
           ))}
         </div>

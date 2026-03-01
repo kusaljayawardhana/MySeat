@@ -5,6 +5,7 @@ import com.kusal.myseat.dto.CreateSectionRequest;
 import com.kusal.myseat.dto.CreateUserRequest;
 import com.kusal.myseat.dto.CreateVenueRequest;
 import com.kusal.myseat.dto.EventView;
+import com.kusal.myseat.dto.EventSectionView;
 import com.kusal.myseat.dto.SeatView;
 import com.kusal.myseat.entity.Event;
 import com.kusal.myseat.entity.Section;
@@ -35,8 +36,14 @@ public class CatalogController {
     }
 
     @GetMapping("/events/{eventId}")
-    public EventView getEventById(@PathVariable Long eventId) {
+    public EventView getEventById(@PathVariable("eventId") Long eventId) {
         return catalogService.getEventById(eventId);
+    }
+
+
+    @GetMapping("/venues/{venueId}/sections")
+    public List<EventSectionView> getSectionsForVenue(@PathVariable Long venueId) {
+        return catalogService.getSectionsForVenue(venueId);
     }
 
     @PostMapping("/venues")

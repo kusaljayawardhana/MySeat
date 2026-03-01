@@ -25,6 +25,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 
+    private static final String DEFAULT_EVENT_DESCRIPTION = "Event details will be updated soon.";
+    private static final String DEFAULT_EVENT_IMAGE = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80";
+    private static final String FRIDAY_CONCERT_IMAGE = "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80";
+    private static final String WEEKEND_DRAMA_IMAGE = "https://images.unsplash.com/photo-1503095396549-807759245b35?auto=format&fit=crop&w=1200&q=80";
+
     private final UserRepository userRepository;
     private final VenueRepository venueRepository;
     private final EventRepository eventRepository;
@@ -71,39 +76,127 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedEvents(Venue venue) {
-        boolean hasConcert = eventRepository.findAll().stream()
-                .anyMatch(event -> "Friday Live Concert".equalsIgnoreCase(event.getName()));
-        if (!hasConcert) {
-            eventRepository.save(Event.builder()
-                    .name("Friday Live Concert")
-                    .description("An energetic live music night featuring popular local artists and a full-stage production.")
-                    .eventDate(LocalDateTime.now().plusDays(7))
-                    .venue(venue)
-                    .build());
-        }
+        List<Event> allEvents = eventRepository.findAll();
 
-        boolean hasDrama = eventRepository.findAll().stream()
-                .anyMatch(event -> "Weekend Drama Show".equalsIgnoreCase(event.getName()));
-        if (!hasDrama) {
-            eventRepository.save(Event.builder()
-                    .name("Weekend Drama Show")
-                    .description("A family-friendly stage drama with two acts, intermission, and reserved seating.")
-                    .eventDate(LocalDateTime.now().plusDays(14))
-                    .venue(venue)
-                    .build());
-        }
+        upsertEvent(
+            allEvents,
+            "Friday Live Concert",
+            "An energetic live music night featuring popular local artists and a full-stage production.",
+            FRIDAY_CONCERT_IMAGE,
+            LocalDateTime.now().plusDays(7),
+            venue
+        );
+
+        upsertEvent(
+            allEvents,
+            "Weekend Drama Show",
+            "A family-friendly stage drama with two acts, intermission, and reserved seating.",
+            WEEKEND_DRAMA_IMAGE,
+            LocalDateTime.now().plusDays(14),
+            venue
+        );
+
+        repairEventsWithNulls(venue);
     }
 
     private void seedSectionsAndSeats(Venue venue) {
         Section normalSection = findOrCreateSection(venue, "NORMAL", 2500.0, 8, 10);
         Section balconySection = findOrCreateSection(venue, "BALCONY", 4000.0, 5, 8);
 
-        if (seatRepository.count() == 0) {
-            List<Seat> seats = new ArrayList<>();
-            seats.addAll(generateSeats(normalSection, normalSection.getTotalRows(), normalSection.getTotalColumns()));
-            seats.addAll(generateSeats(balconySection, balconySection.getTotalRows(), balconySection.getTotalColumns()));
-            seatRepository.saveAll(seats);
+        seedSeatsForSectionIfMissing(normalSection);
+        seedSeatsForSectionIfMissing(balconySection);
+    }
+
+    private void upsertEvent(
+            List<Event> allEvents,
+            String name,
+            String description,
+            String imageUrl,
+            LocalDateTime eventDate,
+            Venue venue
+    ) {
+        Event existing = allEvents.stream()
+                .filter(event -> name.equalsIgnoreCase(event.getName()))
+                .findFirst()
+                .orElse(null);
+
+        if (existing == null) {
+            eventRepository.save(Event.builder()
+                    .name(name)
+                    .description(description)
+                    .imageUrl(imageUrl)
+                    .eventDate(eventDate)
+                    .venue(venue)
+                    .build());
+            return;
         }
+
+        boolean changed = false;
+        if (isBlank(existing.getDescription())) {
+            existing.setDescription(description);
+            changed = true;
+        }
+        if (isBlank(existing.getImageUrl())) {
+            existing.setImageUrl(imageUrl);
+            changed = true;
+        }
+        if (existing.getVenue() == null) {
+            existing.setVenue(venue);
+            changed = true;
+        }
+        if (existing.getEventDate() == null) {
+            existing.setEventDate(eventDate);
+            changed = true;
+        }
+
+        if (changed) {
+            eventRepository.save(existing);
+        }
+    }
+
+    private void repairEventsWithNulls(Venue defaultVenue) {
+        List<Event> allEvents = eventRepository.findAll();
+        for (Event event : allEvents) {
+            boolean changed = false;
+
+            if (event.getVenue() == null) {
+                event.setVenue(defaultVenue);
+                changed = true;
+            }
+            if (isBlank(event.getDescription())) {
+                event.setDescription(DEFAULT_EVENT_DESCRIPTION);
+                changed = true;
+            }
+            if (isBlank(event.getImageUrl())) {
+                event.setImageUrl(DEFAULT_EVENT_IMAGE);
+                changed = true;
+            }
+            if (event.getEventDate() == null) {
+                event.setEventDate(LocalDateTime.now().plusDays(21));
+                changed = true;
+            }
+
+            if (changed) {
+                eventRepository.save(event);
+            }
+        }
+    }
+
+    private void seedSeatsForSectionIfMissing(Section section) {
+        if (seatRepository.countBySectionId(section.getId()) > 0) {
+            return;
+        }
+
+        if (section.getTotalRows() == null || section.getTotalColumns() == null) {
+            return;
+        }
+
+        List<Seat> seats = generateSeats(section, section.getTotalRows(), section.getTotalColumns());
+        seatRepository.saveAll(seats);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private Section findOrCreateSection(Venue venue, String name, Double price, int rows, int cols) {

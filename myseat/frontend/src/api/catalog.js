@@ -10,6 +10,11 @@ export const getEventById = async (eventId) => {
   return data
 }
 
+export const getVenueSections = async (venueId) => {
+  const { data } = await api.get(`/venues/${venueId}/sections`)
+  return data
+}
+
 export const getEventSeats = async (eventId) => {
   const { data } = await api.get(`/events/${eventId}/seats`)
   return data

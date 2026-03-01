@@ -5,6 +5,7 @@ import com.kusal.myseat.dto.CreateSectionRequest;
 import com.kusal.myseat.dto.CreateUserRequest;
 import com.kusal.myseat.dto.CreateVenueRequest;
 import com.kusal.myseat.dto.EventView;
+import com.kusal.myseat.dto.EventSectionView;
 import com.kusal.myseat.dto.SeatView;
 import com.kusal.myseat.entity.*;
 import com.kusal.myseat.repository.EventRepository;
@@ -40,7 +41,8 @@ public class CatalogService {
 
         Event event = Event.builder()
                 .name(request.name())
-            .description(request.description())
+                .description(request.description())
+                .imageUrl(request.imageUrl())
                 .venue(venue)
                 .eventDate(eventDate)
                 .build();
@@ -55,9 +57,25 @@ public class CatalogService {
     }
 
     public EventView getEventById(Long eventId) {
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
+        Event event = getEventOrThrow(eventId);
+        requireVenue(event);
         return toEventView(event);
+    }
+
+    public List<EventSectionView> getSectionsForVenue(Long venueId) {
+        Venue venue = venueRepository.findById(venueId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found"));
+
+        return sectionRepository.findByVenueId(venue.getId())
+            .stream()
+            .map(section -> new EventSectionView(
+                section.getId(),
+                section.getName(),
+                section.getPrice(),
+                section.getTotalRows(),
+                section.getTotalColumns()
+            ))
+            .toList();
     }
 
     public Venue createVenue(CreateVenueRequest request) {
@@ -116,12 +134,12 @@ public class CatalogService {
     public List<SeatView> getSeatsForEvent(Long eventId) {
         bookingService.expireStaleReservations();
 
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
+        Event event = getEventOrThrow(eventId);
+        Venue venue = requireVenue(event);
 
-        ensureSeatsForVenue(event.getVenue().getId());
+        ensureSeatsForVenue(venue.getId());
 
-        return seatRepository.findBySectionVenueId(event.getVenue().getId())
+        return seatRepository.findBySectionVenueId(venue.getId())
                 .stream()
             .filter(seat -> seat.getSection() != null)
             .map(seat -> new SeatView(seat.getId(), seat.getSection().getId(), seat.getRowNumber(), seat.getColumnNumber(), seat.getStatus()))
@@ -157,15 +175,30 @@ public class CatalogService {
     }
 
     private EventView toEventView(Event event) {
+        Venue venue = requireVenue(event);
         return new EventView(
                 event.getId(),
                 event.getName(),
-            event.getDescription(),
+                event.getDescription(),
+                event.getImageUrl(),
                 event.getEventDate(),
-                event.getVenue().getId(),
-                event.getVenue().getName(),
-                event.getVenue().getAddress()
+                venue.getId(),
+                venue.getName(),
+                venue.getAddress()
         );
+    }
+
+    private Event getEventOrThrow(Long eventId) {
+        return eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
+    }
+
+    private Venue requireVenue(Event event) {
+        if (event.getVenue() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Event has no venue assigned. Please reseed data or update the event venue.");
+        }
+        return event.getVenue();
     }
 
     private void ensureSeatsForVenue(Long venueId) {

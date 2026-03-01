@@ -22,6 +22,9 @@ public class Event {
     @Column(length = 2000)
     private String description;
 
+    @Column(length = 1000)
+    private String imageUrl;
+
     private LocalDateTime eventDate;
 
     @ManyToOne

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { createBooking } from '../api/bookings'
-import { getEventById, getEventSeats } from '../api/catalog'
+import { getEventById, getEventSeats, getVenueSections } from '../api/catalog'
 
 const statusMeta = {
   AVAILABLE: {
@@ -21,6 +21,7 @@ const statusMeta = {
 function EventDetailPage() {
   const { eventId } = useParams()
   const [eventItem, setEventItem] = useState(null)
+  const [sections, setSections] = useState([])
   const [seats, setSeats] = useState([])
   const [selectedSeatIds, setSelectedSeatIds] = useState([])
   const [selectedSectionId, setSelectedSectionId] = useState(null)
@@ -44,6 +45,14 @@ function EventDetailPage() {
       try {
         const eventData = await getEventById(eventId)
         setEventItem(eventData)
+
+        try {
+          const sectionData = await getVenueSections(eventData.venueId)
+          setSections(sectionData)
+        } catch (err) {
+          setSections([])
+          setMessage(err?.response?.data?.message || 'Failed to load section pricing')
+        }
       } catch (err) {
         setMessage(err?.response?.data?.message || 'Failed to load event details')
       } finally {
@@ -223,11 +232,32 @@ function EventDetailPage() {
   return (
     <div className="space-y-6">
       <section className="rounded-lg border bg-white p-4 shadow-sm">
+        <img
+          src={eventItem.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80'}
+          alt={eventItem.name}
+          className="mb-4 h-56 w-full rounded object-cover"
+        />
         <h2 className="text-2xl font-semibold">{eventItem.name}</h2>
         <p className="mt-1 text-sm text-slate-600">{new Date(eventItem.eventDate).toLocaleString()}</p>
         <p className="mt-2 text-sm text-slate-700">{eventItem.description || 'Description is not available for this event yet.'}</p>
         <p className="text-sm text-slate-700">{eventItem.venueName}</p>
         <p className="text-sm text-slate-500">{eventItem.venueAddress}</p>
+
+        <div className="mt-4">
+          <h3 className="text-base font-semibold">Section pricing</h3>
+          {sections.length === 0 ? (
+            <p className="mt-1 text-sm text-slate-600">No sections configured for this venue yet.</p>
+          ) : (
+            <ul className="mt-2 space-y-1 text-sm text-slate-700">
+              {sections.map((section) => (
+                <li key={section.sectionId}>
+                  {section.sectionName} - LKR {section.price?.toFixed(2) ?? '0.00'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {!bookingStarted ? (
           <button
             type="button"
