@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -34,6 +35,7 @@ public class CatalogService {
     private final UserRepository userRepository;
     private final VenueRepository venueRepository;
     private final BookingService bookingService;
+    private final PasswordEncoder passwordEncoder;
 
     public Event createEvent(CreateEventRequest request) {
         Venue venue = resolveVenueForEvent(request);
@@ -124,7 +126,7 @@ public class CatalogService {
         User user = User.builder()
                 .name(request.name())
                 .email(request.email())
-                .password(request.password())
+                .password(passwordEncoder.encode(request.password()))
                 .role(request.role())
                 .build();
         return userRepository.save(user);
