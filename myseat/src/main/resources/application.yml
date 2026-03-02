@@ -23,3 +23,7 @@ server:
 
 booking:
   reservation-timeout-seconds: ${BOOKING_RESERVATION_TIMEOUT_SECONDS:300}
+
+jwt:
+  secret: ${JWT_SECRET:myseat-super-secret-key-for-jwt-signing-please-change}
+  expiration-millis: ${JWT_EXPIRATION_MILLIS:86400000}

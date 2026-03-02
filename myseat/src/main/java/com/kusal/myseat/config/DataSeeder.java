@@ -14,6 +14,7 @@ import com.kusal.myseat.repository.UserRepository;
 import com.kusal.myseat.repository.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ public class DataSeeder implements CommandLineRunner {
     private final EventRepository eventRepository;
     private final SectionRepository sectionRepository;
     private final SeatRepository seatRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -46,22 +48,26 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedUsers() {
-        if (userRepository.findByEmail("admin@myseat.com").isEmpty()) {
+        upsertUser("admin@myseat.com", "System Admin", "admin123", Role.ADMIN);
+        upsertUser("user@myseat.com", "Demo User", "user123", Role.USER);
+    }
+
+    private void upsertUser(String email, String name, String rawPassword, Role role) {
+        User existingUser = userRepository.findByEmail(email).orElse(null);
+
+        if (existingUser == null) {
             userRepository.save(User.builder()
-                    .name("System Admin")
-                    .email("admin@myseat.com")
-                    .password("admin123")
-                    .role(Role.ADMIN)
+                    .name(name)
+                    .email(email)
+                    .password(passwordEncoder.encode(rawPassword))
+                    .role(role)
                     .build());
+            return;
         }
 
-        if (userRepository.findByEmail("user@myseat.com").isEmpty()) {
-            userRepository.save(User.builder()
-                    .name("Demo User")
-                    .email("user@myseat.com")
-                    .password("user123")
-                    .role(Role.USER)
-                    .build());
+        if (existingUser.getPassword() == null || !existingUser.getPassword().startsWith("$2")) {
+            existingUser.setPassword(passwordEncoder.encode(rawPassword));
+            userRepository.save(existingUser);
         }
     }
 
