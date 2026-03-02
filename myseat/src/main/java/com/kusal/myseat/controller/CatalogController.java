@@ -67,7 +67,7 @@ public class CatalogController {
     }
 
     @GetMapping("/events/{eventId}/seats")
-    public List<SeatView> getSeatsForEvent(@PathVariable Long eventId) {
+    public List<SeatView> getSeatsForEvent(@PathVariable("eventId") Long eventId) {
         return catalogService.getSeatsForEvent(eventId);
     }
 }
